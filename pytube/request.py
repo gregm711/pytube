@@ -5,23 +5,60 @@ import json
 import logging
 import re
 import socket
+import requests
+import ssl
+import os
+
 from functools import lru_cache
 from urllib import parse
 from urllib.error import URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request, urlopen, getproxies
 
 from pytube.exceptions import RegexMatchError, MaxRetriesExceeded
 from pytube.helpers import regex_search
-import ssl
+
 
 logger = logging.getLogger(__name__)
 default_range_size = 9437184  # 9MB
 
 
-def _execute_request(
+def _execute_request(url, method=None, headers=None, data=None, timeout=20):
+    base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
+    api_key = os.getenv("SCRAPINGBEE_API_KEY")
+    proxies = {
+        "http": f"http://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8886",
+        "https": f"https://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8887",
+    }
+
+    if headers:
+        base_headers.update(headers)
+
+    if data:
+        # encode data for request
+        if not isinstance(data, bytes):
+            data = json.dumps(data)
+
+    response = requests.request(
+        method,
+        url,
+        headers=base_headers,
+        data=data,
+        timeout=timeout,
+        # proxies=proxies,
+        # verify=False,
+    )
+    return response
+
+
+def _execute_request_urrlib(
     url, method=None, headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT
 ):
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
+    api_key = os.getenv("SCRAPINGBEE_API_KEY")
+    proxies = {
+        "http": f"http://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8886",
+        "https": f"https://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8887",
+    }
 
     if headers:
         base_headers.update(headers)
@@ -40,13 +77,19 @@ def _execute_request(
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
+    print("setting proxy")
+    req.set_proxy(proxies["http"], "http")
+    req.set_proxy(proxies["https"], "https")
+
+    print(getproxies())
 
     response = urlopen(req, timeout=timeout, context=ssl_context)  # nosec
 
     return response
 
 
-def get(url, extra_headers=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+# TODO: convert to work with python requests
+def get(url, extra_headers=None, timeout=20):
     """Send an http GET request.
 
     :param str url:
@@ -59,11 +102,14 @@ def get(url, extra_headers=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
     """
     if extra_headers is None:
         extra_headers = {}
-    response = _execute_request(url, headers=extra_headers, timeout=timeout)
-    return response.read().decode("utf-8")
+    response = _execute_request(
+        url, method="GET", headers=extra_headers, timeout=timeout
+    )
+    return response.text
 
 
-def post(url, extra_headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+# TODO: convert to work with python requests
+def post(url, extra_headers=None, data=None, timeout=20):
     """Send an http POST request.
 
     :param str url:
@@ -86,10 +132,10 @@ def post(url, extra_headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIME
     # raises HTTPError [400]: Bad Request otherwise
     extra_headers.update({"Content-Type": "application/json"})
     response = _execute_request(url, headers=extra_headers, data=data, timeout=timeout)
-    return response.read().decode("utf-8")
+    return response.text
 
 
-def seq_stream(url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, max_retries=0):
+def seq_stream(url, timeout=20, max_retries=0):
     """Read the response in sequence.
     :param str url: The URL to perform the GET request for.
     :rtype: Iterable[bytes]
@@ -130,7 +176,7 @@ def seq_stream(url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, max_retries=0):
     return  # pylint: disable=R1711
 
 
-def stream(url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, max_retries=0):
+def stream(url, timeout=20, max_retries=0):
     """Read the response in chunks.
     :param str url: The URL to perform the GET request for.
     :rtype: Iterable[bytes]
