@@ -313,8 +313,6 @@ class Playlist(Sequence):
         return len(self.video_urls)
 
     def __repr__(self) -> str:
-        print("video urls are")
-        print(self.video_urls)
         return f"{repr(self.video_urls)}"
 
     @property
