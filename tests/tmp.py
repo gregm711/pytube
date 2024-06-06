@@ -9,9 +9,9 @@ proxies = {
 youtube_video_url = "https://www.youtube.com/watch?v=KuKv5EMahe0"
 video = YouTube(youtube_video_url)
 print(video)
-print(video.title)
+# print(video.title)
 # # print(video.channel_url)
 # # # print(video.streams.first)
-# channel = PyTubeChannel(video.channel_url)
+channel = PyTubeChannel(video.channel_url)
 # # print(channel.channel_uri)
-# print(channel.channel_id)
+print(channel.channel_id)

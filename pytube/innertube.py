@@ -11,6 +11,7 @@ import os
 import pathlib
 import time
 from urllib import parse
+import requests
 
 # Local imports
 from pytube import request
@@ -335,6 +336,8 @@ class InnerTube:
             del query["key"]
 
         endpoint_url = f"{endpoint}?{parse.urlencode(query)}"
+        print("this is endpoint_url ")
+        print(endpoint_url)
         headers = {
             "Content-Type": "application/json",
         }
@@ -349,25 +352,36 @@ class InnerTube:
 
         headers.update(self.header)
 
-        response_requests = request._execute_request_requests(
+        base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
+        headers.update(base_headers)
+        print("endpoint_url")
+        print(endpoint_url)
+        print("headers")
+        print(headers)
+        print("data")
+        print(data)
+
+        response_urllib = request._execute_request_urllib(
             endpoint_url, "POST", headers=headers, data=data
         )
+        response = requests.post(endpoint_url, headers=headers, json=data)
+        response_text_manual = response.content.decode("utf-8")
 
-        # response = request._execute_request(
-        #     endpoint_url, "POST", headers=headers, data=data
-        # )
-        # # print("CALL_API RESPONSE")
-        # # # response = response.json()
-        # # print("******")
-        # print(response)
-        # print("******")
-        # return response
-        # res_loaded = json.loads(response.read())
-
-        response_requests_loaded = json.loads(response_requests.text)
+        response_requests_loaded_urllib = json.loads(
+            response_urllib.read().decode("utf-8")
+        )
+        response_requests_loaded = json.loads(response_text_manual)
         # print("ARE THEY EQUAL")
         # print(response_requests_loaded == res_loaded)
-
+        print("RESPONSE REQUESTS LOADED")
+        print(response_requests_loaded)
+        print("****")
+        print(response_urllib.getcode())
+        print(response.status_code)
+        print(response_urllib.info())
+        print(response.headers)
+        print(response_urllib.read())
+        print(response.content)
         return response_requests_loaded
 
     def browse(self):
@@ -415,11 +429,15 @@ class InnerTube:
         :returns:
             Raw player info results.
         """
+        print("PLAYER")
         endpoint = f"{self.base_url}/player"
         query = {
             "videoId": video_id,
         }
         query.update(self.base_params)
+        print(endpoint)
+        print(query)
+        print(self.base_data)
         return self._call_api(endpoint, query, self.base_data)
 
     def search(self, search_query, continuation=None):

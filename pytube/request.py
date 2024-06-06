@@ -63,10 +63,10 @@ def _execute_request_urllib(
     url, method=None, headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT
 ):
     print("in _execute_request UURLIB")
-    print("URL:", url)
-    print("Data:", data)
-    print("Method:", method)
-    print("Headers:", headers)
+    # print("URL:", url)
+    # print("Data:", data)
+    # print("Method:", method)
+    # print("Headers:", headers)
 
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
     if headers:
@@ -83,7 +83,7 @@ def _execute_request_urllib(
         raise ValueError("Invalid URL")
 
     # Print the final headers being sent with the request
-    print("Final headers:", req.header_items())
+    # print("Final headers:", req.header_items())
 
     response = urlopen(req, timeout=timeout)  # nosec
 
@@ -108,25 +108,24 @@ def get(url, extra_headers=None, timeout=20):
     print("going to call _execute_request_urllib")
     print(url)
 
-    response = _execute_request_urllib(
-        url, method="GET", headers=extra_headers, timeout=timeout
-    )
+    # response = _execute_request_urllib(url, headers=extra_headers, timeout=timeout)
 
     # response_requests_one = _execute_request_requests(
     #     url, method="GET", headers=extra_headers, timeout=timeout
     # )
     # print
-    # response_requests_two = requests.get(url, headers=extra_headers)
-    read_and_decode = response.read().decode("utf-8")
-    print(read_and_decode)
+    response_requests_two = requests.get(url, headers=extra_headers)
+    text = response_requests_two.text
+    # read_and_decode = response.read().decode("utf-8")
+    # print(read_and_decode)
     # print("are they equal?")
     # print(response_requests.text == read_and_decode)
     # print(len(response_requests_one.text))
     # print(len(response_requests_two.text))
-    # print(len(read_and_decode))
+    print(len(text))
     # print(read_and_decode)
     # return response.text
-    return read_and_decode
+    return text
 
 
 # TODO: convert to work with python requests
@@ -152,10 +151,10 @@ def post(url, extra_headers=None, data=None, timeout=20):
     # required because the youtube servers are strict on content type
     # raises HTTPError [400]: Bad Request otherwise
     extra_headers.update({"Content-Type": "application/json"})
-    response = _execute_request_requests(
+    response = _execute_request_urllib(
         url, headers=extra_headers, data=data, timeout=timeout
     )
-    return response.text
+    return response.read().decode("utf-8")
 
 
 def seq_stream(url, timeout=20, max_retries=0):
