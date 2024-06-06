@@ -55,7 +55,6 @@ class Playlist(Sequence):
         :rtype: str
         """
 
-        # print(self._html)
         if self._html:
             return self._html
         self._html = request.get(self.playlist_url)
@@ -79,12 +78,9 @@ class Playlist(Sequence):
 
         :rtype: dict
         """
-        # print(self.html)
         if self._initial_data:
             return self._initial_data
         else:
-            # print("inside else")
-            # print(self.html)
             self._initial_data = extract.initial_data(self.html)
             return self._initial_data
 
@@ -120,9 +116,6 @@ class Playlist(Sequence):
         :rtype: Iterable[List[str]]
         :returns: Iterable of lists of YouTube watch ids
         """
-        # print("inside _paginate")
-        # print("html is ")
-        # print(self.html)
         videos_urls, continuation = self._extract_videos(
             json.dumps(extract.initial_data(self.html))
         )
