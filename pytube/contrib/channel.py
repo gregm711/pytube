@@ -59,7 +59,7 @@ class Channel(Playlist):
 
         :rtype: str
         """
-        print("HERES INITIAL DATA")
+        print("***HERES INITIAL DATA*****")
         print(self.initial_data)
 
         return self.initial_data["metadata"]["channelMetadataRenderer"]["externalId"]
