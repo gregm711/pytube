@@ -39,10 +39,14 @@ def _execute_request_requests(url, method=None, headers=None, data=None, timeout
         base_headers.update(headers)
 
     if data and method != "GET":
-        # encode data for request
-        if not isinstance(data, bytes):
-            data = json.dumps(data)
+        # If data is already a JSON string, we should pass it as 'data' not 'json'
+        if isinstance(data, (dict, list)):
+            json_data = data
+            data = None
+        else:
+            json_data = None
     else:
+        json_data = None  # Ensure no JSON data is sent with GET requests
         data = None  # Ensure no data is sent with GET requests
 
     response = requests.request(
@@ -50,8 +54,9 @@ def _execute_request_requests(url, method=None, headers=None, data=None, timeout
         url,
         headers=base_headers,
         data=data,
+        json=json_data,
         timeout=timeout,
-        proxies=proxies,  # Uncomment if proxies are needed
+        # proxies=proxies,  # Uncomment if proxies are needed
         verify=False,
     )
     print("Headers sent:", base_headers)

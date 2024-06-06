@@ -336,8 +336,6 @@ class InnerTube:
             del query["key"]
 
         endpoint_url = f"{endpoint}?{parse.urlencode(query)}"
-        print("this is endpoint_url ")
-        print(endpoint_url)
         headers = {
             "Content-Type": "application/json",
         }
@@ -351,37 +349,11 @@ class InnerTube:
                 headers["Authorization"] = f"Bearer {self.access_token}"
 
         headers.update(self.header)
-
-        base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
-        headers.update(base_headers)
-        print("endpoint_url")
-        print(endpoint_url)
-        print("headers")
-        print(headers)
-        print("data")
-        print(data)
-
-        response_urllib = request._execute_request_urllib(
+        response = request._execute_request_requests(
             endpoint_url, "POST", headers=headers, data=data
         )
-        response = requests.post(endpoint_url, headers=headers, json=data)
         response_text_manual = response.content.decode("utf-8")
-
-        response_requests_loaded_urllib = json.loads(
-            response_urllib.read().decode("utf-8")
-        )
         response_requests_loaded = json.loads(response_text_manual)
-        # print("ARE THEY EQUAL")
-        # print(response_requests_loaded == res_loaded)
-        print("RESPONSE REQUESTS LOADED")
-        print(response_requests_loaded)
-        print("****")
-        print(response_urllib.getcode())
-        print(response.status_code)
-        print(response_urllib.info())
-        print(response.headers)
-        print(response_urllib.read())
-        print(response.content)
         return response_requests_loaded
 
     def browse(self):
