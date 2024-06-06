@@ -6,6 +6,7 @@ exclusively on the developer interface. Pytube offloads the heavy lifting to
 smaller peripheral modules and functions.
 
 """
+
 import logging
 from typing import Any, Callable, Dict, List, Optional
 
@@ -31,7 +32,7 @@ class YouTube:
         on_complete_callback: Optional[Callable[[Any, Optional[str]], None]] = None,
         proxies: Dict[str, str] = None,
         use_oauth: bool = False,
-        allow_oauth_cache: bool = True
+        allow_oauth_cache: bool = True,
     ):
         """Construct a :class:`YouTube <YouTube>`.
 
@@ -59,7 +60,9 @@ class YouTube:
 
         self._watch_html: Optional[str] = None  # the html of /watch?v=<video_id>
         self._embed_html: Optional[str] = None
-        self._player_config_args: Optional[Dict] = None  # inline js in the html containing
+        self._player_config_args: Optional[Dict] = (
+            None  # inline js in the html containing
+        )
         self._age_restricted: Optional[bool] = None
 
         self._fmt_streams: Optional[List[Stream]] = None
@@ -78,9 +81,6 @@ class YouTube:
             on_progress=on_progress_callback, on_complete=on_complete_callback
         )
 
-        if proxies:
-            install_proxy(proxies)
-
         self._author = None
         self._title = None
         self._publish_date = None
@@ -88,8 +88,10 @@ class YouTube:
         self.use_oauth = use_oauth
         self.allow_oauth_cache = allow_oauth_cache
 
+        self.proxies = proxies
+
     def __repr__(self):
-        return f'<pytube.__main__.YouTube object: videoId={self.video_id}>'
+        return f"<pytube.__main__.YouTube object: videoId={self.video_id}>"
 
     def __eq__(self, o: object) -> bool:
         # Compare types and urls, if they're same return true, else return false.
@@ -99,14 +101,14 @@ class YouTube:
     def watch_html(self):
         if self._watch_html:
             return self._watch_html
-        self._watch_html = request.get(url=self.watch_url)
+        self._watch_html = request.get(url=self.watch_url, proxies=self.proxies)
         return self._watch_html
 
     @property
     def embed_html(self):
         if self._embed_html:
             return self._embed_html
-        self._embed_html = request.get(url=self.embed_url)
+        self._embed_html = request.get(url=self.embed_url, proxies=self.proxies)
         return self._embed_html
 
     @property
@@ -136,7 +138,7 @@ class YouTube:
         # If the js_url doesn't match the cached url, fetch the new js and update
         #  the cache; otherwise, load the cache.
         if pytube.__js_url__ != self.js_url:
-            self._js = request.get(self.js_url)
+            self._js = request.get(self.js_url, proxies=self.proxies)
             pytube.__js__ = self._js
             pytube.__js_url__ = self.js_url
         else:
@@ -154,11 +156,11 @@ class YouTube:
     @property
     def streaming_data(self):
         """Return streamingData from video info."""
-        if 'streamingData' in self.vid_info:
-            return self.vid_info['streamingData']
+        if "streamingData" in self.vid_info:
+            return self.vid_info["streamingData"]
         else:
             self.bypass_age_gate()
-            return self.vid_info['streamingData']
+            return self.vid_info["streamingData"]
 
     @property
     def fmt_streams(self):
@@ -191,8 +193,7 @@ class YouTube:
         # Initialize stream objects
         for stream in stream_manifest:
             video = Stream(
-                stream=stream,
-                monostate=self.stream_monostate,
+                stream=stream, monostate=self.stream_monostate, proxies=self.proxies
             )
             self._fmt_streams.append(video)
 
@@ -210,26 +211,26 @@ class YouTube:
         status, messages = extract.playability_status(self.watch_html)
 
         for reason in messages:
-            if status == 'UNPLAYABLE':
+            if status == "UNPLAYABLE":
                 if reason == (
-                    'Join this channel to get access to members-only content '
-                    'like this video, and other exclusive perks.'
+                    "Join this channel to get access to members-only content "
+                    "like this video, and other exclusive perks."
                 ):
                     raise exceptions.MembersOnly(video_id=self.video_id)
-                elif reason == 'This live stream recording is not available.':
+                elif reason == "This live stream recording is not available.":
                     raise exceptions.RecordingUnavailable(video_id=self.video_id)
                 else:
                     raise exceptions.VideoUnavailable(video_id=self.video_id)
-            elif status == 'LOGIN_REQUIRED':
+            elif status == "LOGIN_REQUIRED":
                 if reason == (
-                    'This is a private video. '
-                    'Please sign in to verify that you may see it.'
+                    "This is a private video. "
+                    "Please sign in to verify that you may see it."
                 ):
                     raise exceptions.VideoPrivate(video_id=self.video_id)
-            elif status == 'ERROR':
-                if reason == 'Video unavailable':
+            elif status == "ERROR":
+                if reason == "Video unavailable":
                     raise exceptions.VideoUnavailable(video_id=self.video_id)
-            elif status == 'LIVE_STREAM':
+            elif status == "LIVE_STREAM":
                 raise exceptions.LiveStreamError(video_id=self.video_id)
 
     @property
@@ -240,8 +241,11 @@ class YouTube:
         """
         if self._vid_info:
             return self._vid_info
-
-        innertube = InnerTube(use_oauth=self.use_oauth, allow_cache=self.allow_oauth_cache)
+        innertube = InnerTube(
+            use_oauth=self.use_oauth,
+            allow_cache=self.allow_oauth_cache,
+            proxies=self.proxies,
+        )
 
         innertube_response = innertube.player(self.video_id)
         self._vid_info = innertube_response
@@ -250,17 +254,18 @@ class YouTube:
     def bypass_age_gate(self):
         """Attempt to update the vid_info by bypassing the age gate."""
         innertube = InnerTube(
-            client='ANDROID_EMBED',
+            client="ANDROID_EMBED",
             use_oauth=self.use_oauth,
-            allow_cache=self.allow_oauth_cache
+            allow_cache=self.allow_oauth_cache,
+            proxies=self.proxies,
         )
         innertube_response = innertube.player(self.video_id)
 
-        playability_status = innertube_response['playabilityStatus'].get('status', None)
+        playability_status = innertube_response["playabilityStatus"].get("status", None)
 
         # If we still can't access the video, raise an exception
         # (tier 3 age restriction)
-        if playability_status == 'UNPLAYABLE':
+        if playability_status == "UNPLAYABLE":
             raise exceptions.AgeRestrictedError(self.video_id)
 
         self._vid_info = innertube_response
@@ -302,9 +307,7 @@ class YouTube:
         :rtype: str
         """
         thumbnail_details = (
-            self.vid_info.get("videoDetails", {})
-            .get("thumbnail", {})
-            .get("thumbnails")
+            self.vid_info.get("videoDetails", {}).get("thumbnail", {}).get("thumbnails")
         )
         if thumbnail_details:
             thumbnail_details = thumbnail_details[-1]  # last item has max size
@@ -338,15 +341,15 @@ class YouTube:
             return self._title
 
         try:
-            self._title = self.vid_info['videoDetails']['title']
+            self._title = self.vid_info["videoDetails"]["title"]
         except KeyError:
             # Check_availability will raise the correct exception in most cases
             #  if it doesn't, ask for a report.
             self.check_availability()
             raise exceptions.PytubeError(
                 (
-                    f'Exception while accessing title of {self.watch_url}. '
-                    'Please file a bug report at https://github.com/pytube/pytube'
+                    f"Exception while accessing title of {self.watch_url}. "
+                    "Please file a bug report at https://github.com/pytube/pytube"
                 )
             )
 
@@ -380,7 +383,7 @@ class YouTube:
 
         :rtype: int
         """
-        return int(self.vid_info.get('videoDetails', {}).get('lengthSeconds'))
+        return int(self.vid_info.get("videoDetails", {}).get("lengthSeconds"))
 
     @property
     def views(self) -> int:
@@ -397,9 +400,7 @@ class YouTube:
         """
         if self._author:
             return self._author
-        self._author = self.vid_info.get("videoDetails", {}).get(
-            "author", "unknown"
-        )
+        self._author = self.vid_info.get("videoDetails", {}).get("author", "unknown")
         return self._author
 
     @author.setter
@@ -413,7 +414,7 @@ class YouTube:
 
         :rtype: List[str]
         """
-        return self.vid_info.get('videoDetails', {}).get('keywords', [])
+        return self.vid_info.get("videoDetails", {}).get("keywords", [])
 
     @property
     def channel_id(self) -> str:
@@ -421,7 +422,7 @@ class YouTube:
 
         :rtype: str
         """
-        return self.vid_info.get('videoDetails', {}).get('channelId', None)
+        return self.vid_info.get("videoDetails", {}).get("channelId", None)
 
     @property
     def channel_url(self) -> str:
@@ -429,7 +430,7 @@ class YouTube:
 
         :rtype: str
         """
-        return f'https://www.youtube.com/channel/{self.channel_id}'
+        return f"https://www.youtube.com/channel/{self.channel_id}"
 
     @property
     def metadata(self) -> Optional[YouTubeMetadata]:
@@ -474,6 +475,6 @@ class YouTube:
             The video id of the YouTube video.
 
         :rtype: :class:`YouTube <YouTube>`
-        
+
         """
         return YouTube(f"https://www.youtube.com/watch?v={video_id}")

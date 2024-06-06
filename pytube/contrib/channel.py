@@ -100,7 +100,7 @@ class Channel(Playlist):
         """
         if self._html:
             return self._html
-        self._html = request.get(self.html_url)
+        self._html = request.get(self.html_url, proxies=self.proxies)
         return self._html
 
     @property
@@ -114,7 +114,7 @@ class Channel(Playlist):
         if self._playlists_html:
             return self._playlists_html
         else:
-            self._playlists_html = request.get(self.playlists_url)
+            self._playlists_html = request.get(self.playlists_url, proxies=self.proxies)
             return self._playlists_html
 
     @property
@@ -128,7 +128,7 @@ class Channel(Playlist):
         if self._community_html:
             return self._community_html
         else:
-            self._community_html = request.get(self.community_url)
+            self._community_html = request.get(self.community_url, proxies=self.proxies)
             return self._community_html
 
     @property
@@ -142,7 +142,9 @@ class Channel(Playlist):
         if self._featured_channels_html:
             return self._featured_channels_html
         else:
-            self._featured_channels_html = request.get(self.featured_channels_url)
+            self._featured_channels_html = request.get(
+                self.featured_channels_url, proxies=self.proxies
+            )
             return self._featured_channels_html
 
     @property
@@ -156,7 +158,7 @@ class Channel(Playlist):
         if self._about_html:
             return self._about_html
         else:
-            self._about_html = request.get(self.about_url)
+            self._about_html = request.get(self.about_url, proxies=self.proxies)
             return self._about_html
 
     def _build_continuation_url(self, continuation: str) -> Tuple[str, dict, dict]:

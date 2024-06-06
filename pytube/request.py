@@ -5,24 +5,60 @@ import json
 import logging
 import re
 import socket
+import requests
+import ssl
+import os
+
 from functools import lru_cache
 from urllib import parse
 from urllib.error import URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request, urlopen, getproxies
 
 from pytube.exceptions import RegexMatchError, MaxRetriesExceeded
 from pytube.helpers import regex_search
-import ssl
+
 
 logger = logging.getLogger(__name__)
 default_range_size = 9437184  # 9MB
 
 
-def _execute_request(
-    url, method=None, headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT
+def _execute_request_requests(
+    url, method=None, headers=None, data=None, proxies=None, timeout=20
 ):
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
 
+    if headers:
+        base_headers.update(headers)
+
+    if data and method != "GET":
+        # If data is already a JSON string, we should pass it as 'data' not 'json'
+        if isinstance(data, (dict, list)):
+            json_data = data
+            data = None
+        else:
+            json_data = None
+    else:
+        json_data = None  # Ensure no JSON data is sent with GET requests
+        data = None  # Ensure no data is sent with GET requests
+
+    response = requests.request(
+        method,
+        url,
+        headers=base_headers,
+        data=data,
+        json=json_data,
+        timeout=timeout,
+        proxies=proxies,  # Uncomment if proxies are needed
+        verify=False,
+    )
+
+    return response
+
+
+def _execute_request_urllib(
+    url, method=None, headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT
+):
+    base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
     if headers:
         base_headers.update(headers)
 
@@ -36,17 +72,13 @@ def _execute_request(
     else:
         raise ValueError("Invalid URL")
 
-    # Create an SSL context that doesn't verify certificates, needed when using proxies
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
-
-    response = urlopen(req, timeout=timeout, context=ssl_context)  # nosec
+    response = urlopen(req, timeout=timeout)  # nosec
 
     return response
 
 
-def get(url, extra_headers=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+# TODO: convert to work with python requests
+def get(url, extra_headers=None, proxies=None, timeout=20):
     """Send an http GET request.
 
     :param str url:
@@ -59,11 +91,14 @@ def get(url, extra_headers=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
     """
     if extra_headers is None:
         extra_headers = {}
-    response = _execute_request(url, headers=extra_headers, timeout=timeout)
-    return response.read().decode("utf-8")
+
+    response_requests_one = _execute_request_requests(
+        url, method="GET", headers=extra_headers, proxies=proxies, timeout=timeout
+    )
+    return response_requests_one.text
 
 
-def post(url, extra_headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+def post(url, extra_headers=None, data=None, proxies=None, timeout=20):
     """Send an http POST request.
 
     :param str url:
@@ -85,11 +120,18 @@ def post(url, extra_headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIME
     # required because the youtube servers are strict on content type
     # raises HTTPError [400]: Bad Request otherwise
     extra_headers.update({"Content-Type": "application/json"})
-    response = _execute_request(url, headers=extra_headers, data=data, timeout=timeout)
-    return response.read().decode("utf-8")
+    # response = _execute_request_urllib(
+    #     url, headers=extra_headers, data=data, timeout=timeout
+    # )
+    response = _execute_request_requests(
+        url, "POST", headers=extra_headers, data=data, proxies=proxies
+    )
+    response_text_manual = response.content.decode("utf-8")
+    response_requests_loaded = json.loads(response_text_manual)
+    return response_requests_loaded
 
 
-def seq_stream(url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, max_retries=0):
+def seq_stream(url, timeout=20, max_retries=0, proxies=None):
     """Read the response in sequence.
     :param str url: The URL to perform the GET request for.
     :rtype: Iterable[bytes]
@@ -106,7 +148,7 @@ def seq_stream(url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, max_retries=0):
     url = base_url + parse.urlencode(querys)
 
     segment_data = b""
-    for chunk in stream(url, timeout=timeout, max_retries=max_retries):
+    for chunk in stream(url, timeout=timeout, max_retries=max_retries, proxies=proxies):
         yield chunk
         segment_data += chunk
 
@@ -125,12 +167,14 @@ def seq_stream(url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, max_retries=0):
         querys["sq"] = seq_num
         url = base_url + parse.urlencode(querys)
 
-        yield from stream(url, timeout=timeout, max_retries=max_retries)
+        yield from stream(
+            url, timeout=timeout, max_retries=max_retries, proxies=proxies
+        )
         seq_num += 1
     return  # pylint: disable=R1711
 
 
-def stream(url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, max_retries=0):
+def stream(url, timeout=20, max_retries=0, proxies=None):
     """Read the response in chunks.
     :param str url: The URL to perform the GET request for.
     :rtype: Iterable[bytes]
@@ -150,41 +194,44 @@ def stream(url, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, max_retries=0):
 
             # Try to execute the request, ignoring socket timeouts
             try:
-                response = _execute_request(
+                response = _execute_request_requests(
                     url + f"&range={downloaded}-{stop_pos}",
                     method="GET",
+                    proxies=proxies,
                     timeout=timeout,
                 )
-            except URLError as e:
-                # We only want to skip over timeout errors, and
-                # raise any other URLError exceptions
-                if isinstance(e.reason, socket.timeout):
+            except (
+                requests.exceptions.RequestException,
+                requests.exceptions.Timeout,
+            ) as e:
+                if isinstance(e, requests.exceptions.Timeout):
                     pass
                 else:
                     raise
-            except http.client.IncompleteRead:
-                # Allow retries on IncompleteRead errors for unreliable connections
+            except requests.exceptions.ConnectionError:
                 pass
             else:
-                # On a successful request, break from loop
                 break
             tries += 1
 
         if file_size == default_range_size:
             try:
-                resp = _execute_request(
-                    url + f"&range={0}-{99999999999}", method="GET", timeout=timeout
+                resp = _execute_request_requests(
+                    url,
+                    method="GET",
+                    timeout=timeout,
+                    proxies=proxies,
                 )
-                content_range = resp.info()["Content-Length"]
-                file_size = int(content_range)
+                content_length = resp.headers.get("Content-Length")
+                if content_length:
+                    file_size = int(content_length)
             except (KeyError, IndexError, ValueError) as e:
                 logger.error(e)
-        while True:
-            chunk = response.read()
-            if not chunk:
-                break
-            downloaded += len(chunk)
-            yield chunk
+
+        for chunk in response.iter_content(chunk_size=default_range_size):
+            if chunk:
+                downloaded += len(chunk)
+                yield chunk
     return  # pylint: disable=R1711
 
 
@@ -199,7 +246,7 @@ def filesize(url):
 
 
 @lru_cache()
-def seq_filesize(url):
+def seq_filesize(url, proxies=None):
     """Fetch size in bytes of file at given URL from sequential requests
 
     :param str url: The URL to get the size of
@@ -215,9 +262,9 @@ def seq_filesize(url):
     #  information about how the file is segmented.
     querys["sq"] = 0
     url = base_url + parse.urlencode(querys)
-    response = _execute_request(url, method="GET")
+    response = _execute_request_requests(url, method="GET", proxies=proxies)
 
-    response_value = response.read()
+    response_value = response.text
     # The file header must be added to the total filesize
     total_filesize += len(response_value)
 
@@ -248,7 +295,7 @@ def seq_filesize(url):
     return total_filesize
 
 
-def head(url):
+def head(url, proxies=None):
     """Fetch headers returned http GET request.
 
     :param str url:
@@ -257,5 +304,7 @@ def head(url):
     :returns:
         dictionary of lowercase headers
     """
-    response_headers = _execute_request(url, method="HEAD").info()
+    response_headers = _execute_request_requests(
+        url, method="HEAD", proxies=proxies
+    ).info()
     return {k.lower(): v for k, v in response_headers.items()}

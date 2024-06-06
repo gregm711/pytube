@@ -1,4 +1,5 @@
 """This module contains all non-cipher related data extraction logic."""
+
 import logging
 import urllib.parse
 import re
