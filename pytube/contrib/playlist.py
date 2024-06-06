@@ -116,6 +116,9 @@ class Playlist(Sequence):
         :rtype: Iterable[List[str]]
         :returns: Iterable of lists of YouTube watch ids
         """
+        print("html is ")
+        print(self.html)
+
         videos_urls, continuation = self._extract_videos(
             json.dumps(extract.initial_data(self.html))
         )
@@ -310,6 +313,8 @@ class Playlist(Sequence):
         return len(self.video_urls)
 
     def __repr__(self) -> str:
+        print("video urls are")
+        print(self.video_urls)
         return f"{repr(self.video_urls)}"
 
     @property

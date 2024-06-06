@@ -264,7 +264,8 @@ class InnerTube:
             headers={"Content-Type": "application/json"},
             data=data,
         )
-        response_data = json.loads(response.read())
+        print("refresh_bearer_token TOKEN")
+        response_data = response.json()
 
         self.access_token = response_data["access_token"]
         self.expires = start_time + response_data["expires_in"]
@@ -284,7 +285,7 @@ class InnerTube:
             headers={"Content-Type": "application/json"},
             data=data,
         )
-        response_data = json.loads(response.read())
+        response_data = response.json()
         verification_url = response_data["verification_url"]
         user_code = response_data["user_code"]
         print(f"Please open {verification_url} and input code {user_code}")
@@ -302,7 +303,7 @@ class InnerTube:
             headers={"Content-Type": "application/json"},
             data=data,
         )
-        response_data = json.loads(response.read())
+        response_data = response.json()
 
         self.access_token = response_data["access_token"]
         self.refresh_token = response_data["refresh_token"]
@@ -327,6 +328,10 @@ class InnerTube:
     def _call_api(self, endpoint, query, data):
         """Make a request to a given endpoint with the provided query parameters and data."""
         # Remove the API key if oauth is being used.
+        print("CALL_API")
+        print(endpoint)
+        print(query)
+        print(data)
         if self.use_oauth:
             del query["key"]
 
@@ -348,7 +353,12 @@ class InnerTube:
         response = request._execute_request(
             endpoint_url, "POST", headers=headers, data=data
         )
-        return response.json()
+        print("CALL_API RESPONSE")
+        response = response.json()
+        print("******")
+        print(response)
+        print("******")
+        return response
 
     def browse(self):
         """Make a request to the browse endpoint.
