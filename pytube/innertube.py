@@ -354,7 +354,7 @@ class InnerTube:
             endpoint_url, "POST", headers=headers, data=data
         )
         print("CALL_API RESPONSE")
-        response = response.json()
+        # response = response.json()
         print("******")
         print(response)
         print("******")

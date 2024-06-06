@@ -260,11 +260,12 @@ def target_directory(output_path: Optional[str] = None) -> str:
 
 
 def install_proxy(proxy_handler: Dict[str, str]) -> None:
-    print("installing proxy")
-    print(proxy_handler)
-    proxy_support = request.ProxyHandler(proxy_handler)
-    opener = request.build_opener(proxy_support)
-    request.install_opener(opener)
+    # print("installing proxy")
+    # print(proxy_handler)
+    # proxy_support = request.ProxyHandler(proxy_handler)
+    # opener = request.build_opener(proxy_support)
+    # request.install_opener(opener)
+    pass
 
 
 def uniqueify(duped_list: List) -> List:

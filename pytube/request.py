@@ -22,7 +22,12 @@ logger = logging.getLogger(__name__)
 default_range_size = 9437184  # 9MB
 
 
-def _execute_request(url, method=None, headers=None, data=None, timeout=20):
+def _execute_reques_requests(url, method=None, headers=None, data=None, timeout=20):
+    print("in _execute_request")
+    print(data)
+    print(method)
+    print(headers)
+    print(data)
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
     api_key = os.getenv("SCRAPINGBEE_API_KEY")
     proxies = {
@@ -47,19 +52,15 @@ def _execute_request(url, method=None, headers=None, data=None, timeout=20):
         # proxies=proxies,
         # verify=False,
     )
+    response.encoding = "utf-8"
+
     return response
 
 
-def _execute_request_urrlib(
+def _execute_request(
     url, method=None, headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT
 ):
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
-    api_key = os.getenv("SCRAPINGBEE_API_KEY")
-    proxies = {
-        "http": f"http://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8886",
-        "https": f"https://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8887",
-    }
-
     if headers:
         base_headers.update(headers)
 
@@ -73,17 +74,7 @@ def _execute_request_urrlib(
     else:
         raise ValueError("Invalid URL")
 
-    # Create an SSL context that doesn't verify certificates, needed when using proxies
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
-    print("setting proxy")
-    req.set_proxy(proxies["http"], "http")
-    req.set_proxy(proxies["https"], "https")
-
-    print(getproxies())
-
-    response = urlopen(req, timeout=timeout, context=ssl_context)  # nosec
+    response = urlopen(req, timeout=timeout)  # nosec
 
     return response
 
@@ -105,7 +96,7 @@ def get(url, extra_headers=None, timeout=20):
     response = _execute_request(
         url, method="GET", headers=extra_headers, timeout=timeout
     )
-    return response.text
+    return response.read().decode("utf-8")
 
 
 # TODO: convert to work with python requests
