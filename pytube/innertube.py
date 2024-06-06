@@ -401,15 +401,11 @@ class InnerTube:
         :returns:
             Raw player info results.
         """
-        print("PLAYER")
         endpoint = f"{self.base_url}/player"
         query = {
             "videoId": video_id,
         }
         query.update(self.base_params)
-        print(endpoint)
-        print(query)
-        print(self.base_data)
         return self._call_api(endpoint, query, self.base_data)
 
     def search(self, search_query, continuation=None):

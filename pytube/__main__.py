@@ -241,11 +241,8 @@ class YouTube:
 
         :rtype: Dict[Any, Any]
         """
-        print("vid_info")
         if self._vid_info:
             return self._vid_info
-        print(self.use_oauth)
-        print(self.allow_oauth_cache)
         innertube = InnerTube(
             use_oauth=self.use_oauth, allow_cache=self.allow_oauth_cache
         )
