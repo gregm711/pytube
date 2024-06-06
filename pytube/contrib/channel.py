@@ -59,7 +59,6 @@ class Channel(Playlist):
 
         :rtype: str
         """
-        print(self.initial_data)
         return self.initial_data["metadata"]["channelMetadataRenderer"]["externalId"]
 
     @property

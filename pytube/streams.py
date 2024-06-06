@@ -309,9 +309,6 @@ class Stream:
         :rtype: str
 
         """
-        print("************")
-        print("DOWNLOADING")
-        print(self.proxies)
         file_path = self.get_file_path(
             filename=filename,
             output_path=output_path,
