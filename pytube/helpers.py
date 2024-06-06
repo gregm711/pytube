@@ -260,21 +260,6 @@ def target_directory(output_path: Optional[str] = None) -> str:
 
 
 def install_proxy(proxy_handler: Dict[str, str]) -> None:
-    # # Create an SSL context that doesn't verify certificates
-    # ssl_context = ssl.create_default_context()
-    # ssl_context.check_hostname = False
-    # ssl_context.verify_mode = ssl.CERT_NONE
-
-    # # Set up the proxy handler
-    # proxy_support = request.ProxyHandler(proxy_handler)
-
-    # # Create an opener with the proxy handler and the custom HTTPS handler
-    # opener = request.build_opener(
-    #     proxy_support, request.HTTPSHandler(context=ssl_context)
-    # )
-
-    # # Install the opener
-    # request.install_opener(opener)
     proxy_support = request.ProxyHandler(proxy_handler)
     opener = request.build_opener(proxy_support)
     request.install_opener(opener)
