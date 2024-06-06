@@ -22,12 +22,12 @@ logger = logging.getLogger(__name__)
 default_range_size = 9437184  # 9MB
 
 
-def _execute_reques_requests(url, method=None, headers=None, data=None, timeout=20):
+def _execute_request_requests(url, method=None, headers=None, data=None, timeout=20):
     print("in _execute_request")
-    print(data)
-    print(method)
-    print(headers)
-    print(data)
+    print("Data:", data)
+    print("Method:", method)
+    print("Headers:", headers)
+
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
     api_key = os.getenv("SCRAPINGBEE_API_KEY")
     proxies = {
@@ -38,10 +38,12 @@ def _execute_reques_requests(url, method=None, headers=None, data=None, timeout=
     if headers:
         base_headers.update(headers)
 
-    if data:
+    if data and method != "GET":
         # encode data for request
         if not isinstance(data, bytes):
             data = json.dumps(data)
+    else:
+        data = None  # Ensure no data is sent with GET requests
 
     response = requests.request(
         method,
@@ -49,17 +51,23 @@ def _execute_reques_requests(url, method=None, headers=None, data=None, timeout=
         headers=base_headers,
         data=data,
         timeout=timeout,
-        # proxies=proxies,
-        # verify=False,
+        proxies=proxies,  # Uncomment if proxies are needed
+        verify=False,
     )
-    response.encoding = "utf-8"
+    print("Headers sent:", base_headers)
 
     return response
 
 
-def _execute_request(
+def _execute_request_urllib(
     url, method=None, headers=None, data=None, timeout=socket._GLOBAL_DEFAULT_TIMEOUT
 ):
+    print("in _execute_request UURLIB")
+    print("URL:", url)
+    print("Data:", data)
+    print("Method:", method)
+    print("Headers:", headers)
+
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
     if headers:
         base_headers.update(headers)
@@ -73,6 +81,9 @@ def _execute_request(
         req = Request(url, headers=base_headers, method=method, data=data)
     else:
         raise ValueError("Invalid URL")
+
+    # Print the final headers being sent with the request
+    print("Final headers:", req.header_items())
 
     response = urlopen(req, timeout=timeout)  # nosec
 
@@ -93,10 +104,29 @@ def get(url, extra_headers=None, timeout=20):
     """
     if extra_headers is None:
         extra_headers = {}
-    response = _execute_request(
+
+    print("going to call _execute_request_urllib")
+    print(url)
+
+    response = _execute_request_urllib(
         url, method="GET", headers=extra_headers, timeout=timeout
     )
-    return response.read().decode("utf-8")
+
+    # response_requests_one = _execute_request_requests(
+    #     url, method="GET", headers=extra_headers, timeout=timeout
+    # )
+    # print
+    # response_requests_two = requests.get(url, headers=extra_headers)
+    read_and_decode = response.read().decode("utf-8")
+    print(read_and_decode)
+    # print("are they equal?")
+    # print(response_requests.text == read_and_decode)
+    # print(len(response_requests_one.text))
+    # print(len(response_requests_two.text))
+    # print(len(read_and_decode))
+    # print(read_and_decode)
+    # return response.text
+    return read_and_decode
 
 
 # TODO: convert to work with python requests
@@ -122,7 +152,9 @@ def post(url, extra_headers=None, data=None, timeout=20):
     # required because the youtube servers are strict on content type
     # raises HTTPError [400]: Bad Request otherwise
     extra_headers.update({"Content-Type": "application/json"})
-    response = _execute_request(url, headers=extra_headers, data=data, timeout=timeout)
+    response = _execute_request_requests(
+        url, headers=extra_headers, data=data, timeout=timeout
+    )
     return response.text
 
 
@@ -187,7 +219,7 @@ def stream(url, timeout=20, max_retries=0):
 
             # Try to execute the request, ignoring socket timeouts
             try:
-                response = _execute_request(
+                response = _execute_request_requests(
                     url + f"&range={downloaded}-{stop_pos}",
                     method="GET",
                     timeout=timeout,
@@ -209,7 +241,7 @@ def stream(url, timeout=20, max_retries=0):
 
         if file_size == default_range_size:
             try:
-                resp = _execute_request(
+                resp = _execute_request_requests(
                     url + f"&range={0}-{99999999999}", method="GET", timeout=timeout
                 )
                 content_range = resp.info()["Content-Length"]
@@ -252,9 +284,9 @@ def seq_filesize(url):
     #  information about how the file is segmented.
     querys["sq"] = 0
     url = base_url + parse.urlencode(querys)
-    response = _execute_request(url, method="GET")
+    response = _execute_request_requests(url, method="GET")
 
-    response_value = response.read()
+    response_value = response.text
     # The file header must be added to the total filesize
     total_filesize += len(response_value)
 
@@ -294,5 +326,5 @@ def head(url):
     :returns:
         dictionary of lowercase headers
     """
-    response_headers = _execute_request(url, method="HEAD").info()
+    response_headers = _execute_request_requests(url, method="HEAD").info()
     return {k.lower(): v for k, v in response_headers.items()}

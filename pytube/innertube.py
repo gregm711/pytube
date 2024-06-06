@@ -258,14 +258,15 @@ class InnerTube:
             "grant_type": "refresh_token",
             "refresh_token": self.refresh_token,
         }
-        response = request._execute_request(
+        response = request._execute_request_requests(
             "https://oauth2.googleapis.com/token",
             "POST",
             headers={"Content-Type": "application/json"},
             data=data,
         )
-        print("refresh_bearer_token TOKEN")
-        response_data = response.json()
+
+        # response_data = response.json()
+        response_data = json.loads(response.text)
 
         self.access_token = response_data["access_token"]
         self.expires = start_time + response_data["expires_in"]
@@ -279,13 +280,14 @@ class InnerTube:
             "client_id": _client_id,
             "scope": "https://www.googleapis.com/auth/youtube",
         }
-        response = request._execute_request(
+        response = request._execute_request_requests(
             "https://oauth2.googleapis.com/device/code",
             "POST",
             headers={"Content-Type": "application/json"},
             data=data,
         )
-        response_data = response.json()
+        # response_data = response.json()
+        response_data = json.loads(response.text)
         verification_url = response_data["verification_url"]
         user_code = response_data["user_code"]
         print(f"Please open {verification_url} and input code {user_code}")
@@ -297,13 +299,14 @@ class InnerTube:
             "device_code": response_data["device_code"],
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
         }
-        response = request._execute_request(
+        response = request._execute_request_requests(
             "https://oauth2.googleapis.com/token",
             "POST",
             headers={"Content-Type": "application/json"},
             data=data,
         )
-        response_data = response.json()
+        # response_data = response.json()
+        response_data = json.loads(response.text)
 
         self.access_token = response_data["access_token"]
         self.refresh_token = response_data["refresh_token"]
@@ -328,10 +331,6 @@ class InnerTube:
     def _call_api(self, endpoint, query, data):
         """Make a request to a given endpoint with the provided query parameters and data."""
         # Remove the API key if oauth is being used.
-        print("CALL_API")
-        print(endpoint)
-        print(query)
-        print(data)
         if self.use_oauth:
             del query["key"]
 
@@ -350,15 +349,26 @@ class InnerTube:
 
         headers.update(self.header)
 
-        response = request._execute_request(
+        response_requests = request._execute_request_requests(
             endpoint_url, "POST", headers=headers, data=data
         )
-        print("CALL_API RESPONSE")
-        # response = response.json()
-        print("******")
-        print(response)
-        print("******")
-        return response
+
+        # response = request._execute_request(
+        #     endpoint_url, "POST", headers=headers, data=data
+        # )
+        # # print("CALL_API RESPONSE")
+        # # # response = response.json()
+        # # print("******")
+        # print(response)
+        # print("******")
+        # return response
+        # res_loaded = json.loads(response.read())
+
+        response_requests_loaded = json.loads(response_requests.text)
+        # print("ARE THEY EQUAL")
+        # print(response_requests_loaded == res_loaded)
+
+        return response_requests_loaded
 
     def browse(self):
         """Make a request to the browse endpoint.
