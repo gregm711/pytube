@@ -193,8 +193,7 @@ class YouTube:
         # Initialize stream objects
         for stream in stream_manifest:
             video = Stream(
-                stream=stream,
-                monostate=self.stream_monostate,
+                stream=stream, monostate=self.stream_monostate, proxies=self.proxies
             )
             self._fmt_streams.append(video)
 
@@ -243,7 +242,9 @@ class YouTube:
         if self._vid_info:
             return self._vid_info
         innertube = InnerTube(
-            use_oauth=self.use_oauth, allow_cache=self.allow_oauth_cache
+            use_oauth=self.use_oauth,
+            allow_cache=self.allow_oauth_cache,
+            proxies=self.proxies,
         )
 
         innertube_response = innertube.player(self.video_id)
@@ -256,6 +257,7 @@ class YouTube:
             client="ANDROID_EMBED",
             use_oauth=self.use_oauth,
             allow_cache=self.allow_oauth_cache,
+            proxies=self.proxies,
         )
         innertube_response = innertube.player(self.video_id)
 

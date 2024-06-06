@@ -191,7 +191,9 @@ _token_file = os.path.join(_cache_dir, "tokens.json")
 class InnerTube:
     """Object for interacting with the innertube API."""
 
-    def __init__(self, client="ANDROID_MUSIC", use_oauth=False, allow_cache=True):
+    def __init__(
+        self, client="ANDROID_MUSIC", use_oauth=False, allow_cache=True, proxies=None
+    ):
         """Initialize an InnerTube object.
 
         :param str client:
@@ -209,6 +211,7 @@ class InnerTube:
         self.refresh_token = None
         self.use_oauth = use_oauth
         self.allow_cache = allow_cache
+        self.proxies = proxies
 
         # Stored as epoch time
         self.expires = None
@@ -264,6 +267,7 @@ class InnerTube:
             "POST",
             headers={"Content-Type": "application/json"},
             data=data,
+            proxies=self.proxies,
         )
 
         # response_data = response.json()
@@ -286,6 +290,7 @@ class InnerTube:
             "POST",
             headers={"Content-Type": "application/json"},
             data=data,
+            proxies=self.proxies,
         )
         # response_data = response.json()
         response_data = json.loads(response.text)
@@ -305,6 +310,7 @@ class InnerTube:
             "POST",
             headers={"Content-Type": "application/json"},
             data=data,
+            proxies=self.proxies,
         )
         # response_data = response.json()
         response_data = json.loads(response.text)
@@ -350,7 +356,7 @@ class InnerTube:
 
         headers.update(self.header)
         response = request._execute_request_requests(
-            endpoint_url, "POST", headers=headers, data=data
+            endpoint_url, "POST", headers=headers, data=data, proxies=self.proxies
         )
         response_text_manual = response.content.decode("utf-8")
         response_requests_loaded = json.loads(response_text_manual)
@@ -424,7 +430,7 @@ class InnerTube:
         if continuation:
             data["continuation"] = continuation
         data.update(self.base_data)
-        return self._call_api(endpoint, query, data)
+        return self._call_api(endpoint, query, data, proxies=self.proxies)
 
     def verify_age(self, video_id):
         """Make a request to the age_verify endpoint.

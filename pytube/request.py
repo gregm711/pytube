@@ -25,7 +25,6 @@ default_range_size = 9437184  # 9MB
 def _execute_request_requests(
     url, method=None, headers=None, data=None, proxies=None, timeout=20
 ):
-
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
 
     if headers:
@@ -94,7 +93,7 @@ def get(url, extra_headers=None, proxies=None, timeout=20):
         extra_headers = {}
 
     response_requests_one = _execute_request_requests(
-        url, method="GET", headers=extra_headers,proxies=proxies, timeout=timeout
+        url, method="GET", headers=extra_headers, proxies=proxies, timeout=timeout
     )
     return response_requests_one.text
 
@@ -124,7 +123,9 @@ def post(url, extra_headers=None, data=None, proxies=None, timeout=20):
     # response = _execute_request_urllib(
     #     url, headers=extra_headers, data=data, timeout=timeout
     # )
-    response = _execute_request_requests(url, "POST", headers=extra_headers, data=data, proxies=proxies)
+    response = _execute_request_requests(
+        url, "POST", headers=extra_headers, data=data, proxies=proxies
+    )
     response_text_manual = response.content.decode("utf-8")
     response_requests_loaded = json.loads(response_text_manual)
     return response_requests_loaded
@@ -147,7 +148,7 @@ def seq_stream(url, timeout=20, max_retries=0, proxies=None):
     url = base_url + parse.urlencode(querys)
 
     segment_data = b""
-    for chunk in stream(url, timeout=timeout, max_retries=, proxies=proxies):
+    for chunk in stream(url, timeout=timeout, max_retries=max_retries, proxies=proxies):
         yield chunk
         segment_data += chunk
 
@@ -166,7 +167,9 @@ def seq_stream(url, timeout=20, max_retries=0, proxies=None):
         querys["sq"] = seq_num
         url = base_url + parse.urlencode(querys)
 
-        yield from stream(url, timeout=timeout, max_retries=max_retries, proxies=proxies)
+        yield from stream(
+            url, timeout=timeout, max_retries=max_retries, proxies=proxies
+        )
         seq_num += 1
     return  # pylint: disable=R1711
 
@@ -197,36 +200,38 @@ def stream(url, timeout=20, max_retries=0, proxies=None):
                     proxies=proxies,
                     timeout=timeout,
                 )
-            except URLError as e:
-                # We only want to skip over timeout errors, and
-                # raise any other URLError exceptions
-                if isinstance(e.reason, socket.timeout):
+            except (
+                requests.exceptions.RequestException,
+                requests.exceptions.Timeout,
+            ) as e:
+                if isinstance(e, requests.exceptions.Timeout):
                     pass
                 else:
                     raise
-            except http.client.IncompleteRead:
-                # Allow retries on IncompleteRead errors for unreliable connections
+            except requests.exceptions.ConnectionError:
                 pass
             else:
-                # On a successful request, break from loop
                 break
             tries += 1
 
         if file_size == default_range_size:
             try:
                 resp = _execute_request_requests(
-                    url + f"&range={0}-{99999999999}", method="GET", timeout=timeout, proxies=proxies
+                    url,
+                    method="GET",
+                    timeout=timeout,
+                    proxies=proxies,
                 )
-                content_range = resp.info()["Content-Length"]
-                file_size = int(content_range)
+                content_length = resp.headers.get("Content-Length")
+                if content_length:
+                    file_size = int(content_length)
             except (KeyError, IndexError, ValueError) as e:
                 logger.error(e)
-        while True:
-            chunk = response.read()
-            if not chunk:
-                break
-            downloaded += len(chunk)
-            yield chunk
+
+        for chunk in response.iter_content(chunk_size=default_range_size):
+            if chunk:
+                downloaded += len(chunk)
+                yield chunk
     return  # pylint: disable=R1711
 
 
@@ -299,5 +304,7 @@ def head(url, proxies=None):
     :returns:
         dictionary of lowercase headers
     """
-    response_headers = _execute_request_requests(url, method="HEAD", proxies=proxies).info()
+    response_headers = _execute_request_requests(
+        url, method="HEAD", proxies=proxies
+    ).info()
     return {k.lower(): v for k, v in response_headers.items()}
