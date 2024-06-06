@@ -15,7 +15,7 @@ video = YouTube(youtube_video_url, proxies=proxies)
 
 # youtube = YouTube(url, proxies=proxies if proxies else None)
 # Get the audio stream
-audio_stream = video.streams.filter(only_audio=True).first()
+audio_stream = video.streams.filter(only_audio=True).order_by("abr").desc().first()
 print(audio_stream)
 print(audio_stream.download(output_path=".", filename="audio"))
 # audio_stream.download(output_path=".", filename="audio")
