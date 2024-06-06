@@ -16,8 +16,6 @@ class Playlist(Sequence):
     """Load a YouTube playlist with URL"""
 
     def __init__(self, url: str, proxies: Optional[Dict[str, str]] = None):
-        if proxies:
-            install_proxy(proxies)
 
         self._input_url = url
 
@@ -28,6 +26,7 @@ class Playlist(Sequence):
         self._sidebar_info = None
 
         self._playlist_id = None
+        self.proxies = proxies
 
     @property
     def playlist_id(self):
@@ -57,7 +56,7 @@ class Playlist(Sequence):
 
         if self._html:
             return self._html
-        self._html = request.get(self.playlist_url)
+        self._html = request.get(self.playlist_url, proxies=self.proxies)
 
         return self._html
 
@@ -141,7 +140,9 @@ class Playlist(Sequence):
             logger.debug("load more url: %s", load_more_url)
             # requesting the next page of videos with the url generated from the
             # previous page, needs to be a post
-            req = request.post(load_more_url, extra_headers=headers, data=data)
+            req = request.post(
+                load_more_url, extra_headers=headers, data=data, proxies=self.proxies
+            )
             # extract up to 100 songs from the page loaded
             # returns another continuation if more videos are available
             videos_urls, continuation = self._extract_videos(req)

@@ -81,15 +81,14 @@ class YouTube:
             on_progress=on_progress_callback, on_complete=on_complete_callback
         )
 
-        if proxies:
-            install_proxy(proxies)
-
         self._author = None
         self._title = None
         self._publish_date = None
 
         self.use_oauth = use_oauth
         self.allow_oauth_cache = allow_oauth_cache
+
+        self.proxies = proxies
 
     def __repr__(self):
         return f"<pytube.__main__.YouTube object: videoId={self.video_id}>"
@@ -102,14 +101,14 @@ class YouTube:
     def watch_html(self):
         if self._watch_html:
             return self._watch_html
-        self._watch_html = request.get(url=self.watch_url)
+        self._watch_html = request.get(url=self.watch_url, proxies=self.proxies)
         return self._watch_html
 
     @property
     def embed_html(self):
         if self._embed_html:
             return self._embed_html
-        self._embed_html = request.get(url=self.embed_url)
+        self._embed_html = request.get(url=self.embed_url, proxies=self.proxies)
         return self._embed_html
 
     @property
@@ -139,7 +138,7 @@ class YouTube:
         # If the js_url doesn't match the cached url, fetch the new js and update
         #  the cache; otherwise, load the cache.
         if pytube.__js_url__ != self.js_url:
-            self._js = request.get(self.js_url)
+            self._js = request.get(self.js_url, proxies=self.proxies)
             pytube.__js__ = self._js
             pytube.__js_url__ = self.js_url
         else:

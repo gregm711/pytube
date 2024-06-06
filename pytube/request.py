@@ -22,14 +22,11 @@ logger = logging.getLogger(__name__)
 default_range_size = 9437184  # 9MB
 
 
-def _execute_request_requests(url, method=None, headers=None, data=None, timeout=20):
+def _execute_request_requests(
+    url, method=None, headers=None, data=None, proxies=None, timeout=20
+):
 
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
-    api_key = os.getenv("SCRAPINGBEE_API_KEY")
-    proxies = {
-        "http": f"http://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8886",
-        "https": f"https://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8887",
-    }
 
     if headers:
         base_headers.update(headers)
@@ -52,7 +49,7 @@ def _execute_request_requests(url, method=None, headers=None, data=None, timeout
         data=data,
         json=json_data,
         timeout=timeout,
-        # proxies=proxies,  # Uncomment if proxies are needed
+        proxies=proxies,  # Uncomment if proxies are needed
         verify=False,
     )
 
@@ -82,7 +79,7 @@ def _execute_request_urllib(
 
 
 # TODO: convert to work with python requests
-def get(url, extra_headers=None, timeout=20):
+def get(url, extra_headers=None, proxies=None, timeout=20):
     """Send an http GET request.
 
     :param str url:
@@ -97,12 +94,12 @@ def get(url, extra_headers=None, timeout=20):
         extra_headers = {}
 
     response_requests_one = _execute_request_requests(
-        url, method="GET", headers=extra_headers, timeout=timeout
+        url, method="GET", headers=extra_headers,proxies=proxies, timeout=timeout
     )
     return response_requests_one.text
 
 
-def post(url, extra_headers=None, data=None, timeout=20):
+def post(url, extra_headers=None, data=None, proxies=None, timeout=20):
     """Send an http POST request.
 
     :param str url:
@@ -127,13 +124,13 @@ def post(url, extra_headers=None, data=None, timeout=20):
     # response = _execute_request_urllib(
     #     url, headers=extra_headers, data=data, timeout=timeout
     # )
-    response = _execute_request_requests(url, "POST", headers=extra_headers, data=data)
+    response = _execute_request_requests(url, "POST", headers=extra_headers, data=data, proxies=proxies)
     response_text_manual = response.content.decode("utf-8")
     response_requests_loaded = json.loads(response_text_manual)
     return response_requests_loaded
 
 
-def seq_stream(url, timeout=20, max_retries=0):
+def seq_stream(url, timeout=20, max_retries=0, proxies=None):
     """Read the response in sequence.
     :param str url: The URL to perform the GET request for.
     :rtype: Iterable[bytes]
@@ -150,7 +147,7 @@ def seq_stream(url, timeout=20, max_retries=0):
     url = base_url + parse.urlencode(querys)
 
     segment_data = b""
-    for chunk in stream(url, timeout=timeout, max_retries=max_retries):
+    for chunk in stream(url, timeout=timeout, max_retries=, proxies=proxies):
         yield chunk
         segment_data += chunk
 
@@ -169,12 +166,12 @@ def seq_stream(url, timeout=20, max_retries=0):
         querys["sq"] = seq_num
         url = base_url + parse.urlencode(querys)
 
-        yield from stream(url, timeout=timeout, max_retries=max_retries)
+        yield from stream(url, timeout=timeout, max_retries=max_retries, proxies=proxies)
         seq_num += 1
     return  # pylint: disable=R1711
 
 
-def stream(url, timeout=20, max_retries=0):
+def stream(url, timeout=20, max_retries=0, proxies=None):
     """Read the response in chunks.
     :param str url: The URL to perform the GET request for.
     :rtype: Iterable[bytes]
@@ -197,6 +194,7 @@ def stream(url, timeout=20, max_retries=0):
                 response = _execute_request_requests(
                     url + f"&range={downloaded}-{stop_pos}",
                     method="GET",
+                    proxies=proxies,
                     timeout=timeout,
                 )
             except URLError as e:
@@ -217,7 +215,7 @@ def stream(url, timeout=20, max_retries=0):
         if file_size == default_range_size:
             try:
                 resp = _execute_request_requests(
-                    url + f"&range={0}-{99999999999}", method="GET", timeout=timeout
+                    url + f"&range={0}-{99999999999}", method="GET", timeout=timeout, proxies=proxies
                 )
                 content_range = resp.info()["Content-Length"]
                 file_size = int(content_range)
@@ -243,7 +241,7 @@ def filesize(url):
 
 
 @lru_cache()
-def seq_filesize(url):
+def seq_filesize(url, proxies=None):
     """Fetch size in bytes of file at given URL from sequential requests
 
     :param str url: The URL to get the size of
@@ -259,7 +257,7 @@ def seq_filesize(url):
     #  information about how the file is segmented.
     querys["sq"] = 0
     url = base_url + parse.urlencode(querys)
-    response = _execute_request_requests(url, method="GET")
+    response = _execute_request_requests(url, method="GET", proxies=proxies)
 
     response_value = response.text
     # The file header must be added to the total filesize
@@ -292,7 +290,7 @@ def seq_filesize(url):
     return total_filesize
 
 
-def head(url):
+def head(url, proxies=None):
     """Fetch headers returned http GET request.
 
     :param str url:
@@ -301,5 +299,5 @@ def head(url):
     :returns:
         dictionary of lowercase headers
     """
-    response_headers = _execute_request_requests(url, method="HEAD").info()
+    response_headers = _execute_request_requests(url, method="HEAD", proxies=proxies).info()
     return {k.lower(): v for k, v in response_headers.items()}

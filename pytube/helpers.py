@@ -259,13 +259,15 @@ def target_directory(output_path: Optional[str] = None) -> str:
     return output_path
 
 
-def install_proxy(proxy_handler: Dict[str, str]) -> None:
+def install_proxy(proxies: Dict[str, str]) -> None:
+    os.environ["HTTP_PROXY"] = proxies["http"]
+    os.environ["HTTPS_PROXY"] = proxies["https"]
     # print("installing proxy")
     # print(proxy_handler)
     # proxy_support = request.ProxyHandler(proxy_handler)
     # opener = request.build_opener(proxy_support)
     # request.install_opener(opener)
-    pass
+    # pass
 
 
 def uniqueify(duped_list: List) -> List:
