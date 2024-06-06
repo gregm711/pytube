@@ -23,43 +23,25 @@ def _execute_request(
 ):
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
 
-    # Print the URL, method, headers, and data for the request
-    print(f"Executing request to {url} with method {method}")
-    print(f"Headers: {base_headers}")
     if headers:
         base_headers.update(headers)
-        print(f"Updated Headers: {base_headers}")
 
     if data:
         # encode data for request
         if not isinstance(data, bytes):
             data = bytes(json.dumps(data), encoding="utf-8")
-        print(f"Data: {data}")
 
     if url.lower().startswith("http"):
         req = Request(url, headers=base_headers, method=method, data=data)
     else:
         raise ValueError("Invalid URL")
 
-    # Create an SSL context that doesn't verify certificates
+    # Create an SSL context that doesn't verify certificates, needed when using proxies
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
 
-    # Print the SSL context settings
-    print(
-        "SSL Context:",
-        {
-            "check_hostname": ssl_context.check_hostname,
-            "verify_mode": ssl_context.verify_mode,
-        },
-    )
-
     response = urlopen(req, timeout=timeout, context=ssl_context)  # nosec
-
-    # Print the response status and headers
-    print(f"Response status: {response.status}")
-    print(f"Response headers: {response.headers}")
 
     return response
 
