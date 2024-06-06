@@ -1,9 +1,7 @@
 from pytube import Channel as PyTubeChannel, YouTube
 import os
 
-api_key = (
-    "0QQ83B400ZC1J02ORYGZCORXCVP8KRP6SSRCD9HCAIP1HYVZFHHO84M5VTB6QC8RBB9HDAQS727WF65N"
-)
+api_key = os.environ.get("SCRAPINGBEE_API_KEY")
 proxies = {
     "http": f"http://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8886",
     "https": f"https://{api_key}:render_js=False&premium_proxy=False@proxy.scrapingbee.com:8887",
