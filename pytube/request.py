@@ -25,8 +25,6 @@ default_range_size = 9437184  # 9MB
 def _execute_request_requests(
     url, method=None, headers=None, data=None, proxies=None, timeout=20
 ):
-    print("url ")
-    print(url)
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
 
     if headers:
