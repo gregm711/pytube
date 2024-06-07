@@ -25,6 +25,8 @@ default_range_size = 9437184  # 9MB
 def _execute_request_requests(
     url, method=None, headers=None, data=None, proxies=None, timeout=20
 ):
+    print("url ")
+    print(url)
     base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
 
     if headers:
@@ -194,6 +196,7 @@ def stream(url, timeout=20, max_retries=0, proxies=None):
 
             # Try to execute the request, ignoring socket timeouts
             try:
+
                 response = _execute_request_requests(
                     url + f"&range={downloaded}-{stop_pos}",
                     method="GET",
@@ -236,13 +239,13 @@ def stream(url, timeout=20, max_retries=0, proxies=None):
 
 
 @lru_cache()
-def filesize(url):
+def filesize(url, proxies=None):
     """Fetch size in bytes of file at given URL
 
     :param str url: The URL to get the size of
     :returns: int: size in bytes of remote file
     """
-    return int(head(url)["content-length"])
+    return int(head(url, proxies)["content-length"])
 
 
 @lru_cache()
@@ -290,7 +293,7 @@ def seq_filesize(url, proxies=None):
         querys["sq"] = seq_num
         url = base_url + parse.urlencode(querys)
 
-        total_filesize += int(head(url)["content-length"])
+        total_filesize += int(head(url, proxies)["content-length"])
         seq_num += 1
     return total_filesize
 
@@ -306,5 +309,5 @@ def head(url, proxies=None):
     """
     response_headers = _execute_request_requests(
         url, method="HEAD", proxies=proxies
-    ).info()
+    ).headers
     return {k.lower(): v for k, v in response_headers.items()}

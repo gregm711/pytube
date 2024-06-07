@@ -8,18 +8,28 @@ proxies = {
 }
 youtube_video_url = "https://www.youtube.com/watch?v=KuKv5EMahe0"
 video = YouTube(youtube_video_url, proxies=proxies)
-# print(video)
-# print(video.title)
-# print(video.channel_url)
-# print(video.streams.first)
+# # print(video)
+# # print(video.title)
+# # print(video.channel_url)
+# # print(video.streams.first)
 
-# youtube = YouTube(url, proxies=proxies if proxies else None)
-# Get the audio stream
-audio_stream = video.streams.filter(only_audio=True).order_by("abr").desc().first()
-print(audio_stream)
-print(audio_stream.download(output_path=".", filename="audio"))
-# audio_stream.download(output_path=".", filename="audio")
-# # even with proxies this fails intermitently
-# channel = PyTubeChannel(video.channel_url, proxies=proxies)
-# # print(channel.channel_uri)
-# print(channel.channel_id)
+# # youtube = YouTube(url, proxies=proxies if proxies else None)
+# # Get the audio stream
+# audio_stream = video.streams.filter(only_audio=True).order_by("abr").desc().first()
+# print(audio_stream)
+# print(audio_stream.download(output_path=".", filename="audio"))
+# # audio_stream.download(output_path=".", filename="audio")
+# # # even with proxies this fails intermitently
+# # channel = PyTubeChannel(video.channel_url, proxies=proxies)
+# # # print(channel.channel_uri)
+# # print(channel.channel_id)
+
+
+stream = (
+    video.streams.filter(file_extension="mp4", progressive=True)
+    .order_by("resolution")
+    .desc()
+    .first()
+)
+
+stream.download(output_path=".", filename="video.mp4")
