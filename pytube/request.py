@@ -6,9 +6,7 @@ import logging
 import re
 import socket
 import requests
-import ssl
-import os
-
+import time
 from functools import lru_cache
 from urllib import parse
 from urllib.error import URLError
@@ -136,7 +134,9 @@ def seq_stream(url, timeout=20, max_retries=0, proxies=None):
     :param str url: The URL to perform the GET request for.
     :rtype: Iterable[bytes]
     """
-    # YouTube expects a request sequence number as part of the parameters.
+    print("seq_stream!!!")
+    # YouTube expects a request sequen
+    # ce number as part of the parameters.
     split_url = parse.urlsplit(url)
     base_url = "%s://%s/%s?" % (split_url.scheme, split_url.netloc, split_url.path)
 
@@ -174,7 +174,125 @@ def seq_stream(url, timeout=20, max_retries=0, proxies=None):
     return  # pylint: disable=R1711
 
 
+def stream_new_v1(url, timeout=20, max_retries=0, proxies=None):
+    """Read the response in chunks.
+    :param str url: The URL to perform the GET request for.
+    :rtype: Iterable[bytes]
+    """
+    file_size: int = default_range_size  # fake filesize to start
+    downloaded = 0
+    while downloaded < file_size:
+        stop_pos = min(downloaded + default_range_size, file_size) - 1
+        range_header = f"bytes={downloaded}-{stop_pos}"
+        tries = 0
+
+        # Attempt to make the request multiple times as necessary.
+        while True:
+            print("stream while")
+            print(max_retries)
+            # If the max retries is exceeded, raise an exception
+            if tries >= 1 + max_retries:
+                raise MaxRetriesExceeded()
+
+            # Try to execute the request, ignoring socket timeouts
+            try:
+
+                response = _execute_request_requests(
+                    url + f"&range={downloaded}-{stop_pos}",
+                    method="GET",
+                    proxies=proxies,
+                    timeout=timeout,
+                )
+                print("got response")
+            except (
+                requests.exceptions.RequestException,
+                requests.exceptions.Timeout,
+            ) as e:
+                if isinstance(e, requests.exceptions.Timeout):
+                    pass
+                else:
+                    raise
+            except requests.exceptions.ConnectionError:
+                print("ConnectionError")
+                pass
+            else:
+                break
+            tries += 1
+
+        if file_size == default_range_size:
+
+            try:
+                resp = _execute_request_requests(
+                    url,
+                    method="GET",
+                    timeout=timeout,
+                    proxies=proxies,
+                )
+                content_length = resp.headers.get("Content-Length")
+                if content_length:
+                    file_size = int(content_length)
+            except (KeyError, IndexError, ValueError) as e:
+                logger.error(e)
+
+        for chunk in response.iter_content(chunk_size=default_range_size):
+            if chunk:
+                downloaded += len(chunk)
+                yield chunk
+    return  # pylint: disable=R1711
+
+
 def stream(url, timeout=20, max_retries=0, proxies=None):
+    """Read the response in chunks.
+    :param str url: The URL to perform the GET request for.
+    :param int timeout: The timeout for the request in seconds.
+    :param int max_retries: The maximum number of retries for the request.
+    :param dict proxies: Proxies to use for the request.
+    :rtype: Iterable[bytes]
+    """
+    chunk_size: int = 1024  # fake filesize to start
+    base_headers = {"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"}
+    head_req = requests.head(
+        url + f"&range={0}-{99999999999}",
+        headers=base_headers,
+        proxies=proxies,
+        verify=False,
+    )
+    full_file_size = int(head_req.headers["Content-Length"])
+    downloaded = 0
+
+    def get_range(start, end):
+
+        retries = 0
+        while retries <= max_retries:
+            try:
+                response = requests.get(
+                    url + f"&range={start}-{end}",
+                    headers=base_headers,
+                    # stream=True, # Not working.
+                    proxies=proxies,
+                    verify=False,
+                    timeout=timeout,
+                )
+                if response.status_code in [200, 206]:  # 206 Partial Content
+                    return response
+            except requests.RequestException:
+                retries += 1
+                if retries > max_retries:
+                    raise
+                time.sleep(2)
+        return None
+
+    while downloaded < full_file_size:
+        end_range = min(downloaded + default_range_size - 1, full_file_size - 1)
+        response = get_range(downloaded, end_range)
+        if response:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if chunk:  # Filter out keep-alive new chunks
+                    yield chunk
+                    downloaded += len(chunk)
+
+
+def stream_old(url, timeout=20, max_retries=0, proxies=None):
     """Read the response in chunks.
     :param str url: The URL to perform the GET request for.
     :rtype: Iterable[bytes]
@@ -194,45 +312,45 @@ def stream(url, timeout=20, max_retries=0, proxies=None):
 
             # Try to execute the request, ignoring socket timeouts
             try:
-
-                response = _execute_request_requests(
+                response = _execute_request_urllib(
                     url + f"&range={downloaded}-{stop_pos}",
                     method="GET",
-                    proxies=proxies,
                     timeout=timeout,
                 )
-            except (
-                requests.exceptions.RequestException,
-                requests.exceptions.Timeout,
-            ) as e:
-                if isinstance(e, requests.exceptions.Timeout):
+                print("got response for streaming")
+                print(downloaded)
+                print(file_size)
+                print(stop_pos)
+            except URLError as e:
+                # We only want to skip over timeout errors, and
+                # raise any other URLError exceptions
+                if isinstance(e.reason, socket.timeout):
                     pass
                 else:
                     raise
-            except requests.exceptions.ConnectionError:
+            except http.client.IncompleteRead:
+                # Allow retries on IncompleteRead errors for unreliable connections
                 pass
             else:
+                # On a successful request, break from loop
                 break
             tries += 1
 
         if file_size == default_range_size:
             try:
-                resp = _execute_request_requests(
-                    url,
-                    method="GET",
-                    timeout=timeout,
-                    proxies=proxies,
+                resp = _execute_request_urllib(
+                    url + f"&range={0}-{99999999999}", method="GET", timeout=timeout
                 )
-                content_length = resp.headers.get("Content-Length")
-                if content_length:
-                    file_size = int(content_length)
+                content_range = resp.info()["Content-Length"]
+                file_size = int(content_range)
             except (KeyError, IndexError, ValueError) as e:
                 logger.error(e)
-
-        for chunk in response.iter_content(chunk_size=default_range_size):
-            if chunk:
-                downloaded += len(chunk)
-                yield chunk
+        while True:
+            chunk = response.read()
+            if not chunk:
+                break
+            downloaded += len(chunk)
+            yield chunk
     return  # pylint: disable=R1711
 
 
