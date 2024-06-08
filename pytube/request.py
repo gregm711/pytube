@@ -134,7 +134,6 @@ def seq_stream(url, timeout=20, max_retries=0, proxies=None):
     :param str url: The URL to perform the GET request for.
     :rtype: Iterable[bytes]
     """
-    print("seq_stream!!!")
     # YouTube expects a request sequen
     # ce number as part of the parameters.
     split_url = parse.urlsplit(url)

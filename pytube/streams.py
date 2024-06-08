@@ -315,10 +315,10 @@ class Stream:
             filename_prefix=filename_prefix,
         )
 
-        # if skip_existing and self.exists_at_path(file_path):
-        #     logger.debug(f"file {file_path} already exists, skipping")
-        #     self.on_complete(file_path)
-        #     return file_path
+        if skip_existing and self.exists_at_path(file_path):
+            logger.debug(f"file {file_path} already exists, skipping")
+            self.on_complete(file_path)
+            return file_path
 
         bytes_remaining = self.filesize
         logger.debug(f"downloading ({self.filesize} total bytes) file to {file_path}")
@@ -349,9 +349,7 @@ class Stream:
                     bytes_remaining -= len(chunk)
                     # send to the on_progress callback.
                     self.on_progress(chunk, fh, bytes_remaining)
-        print("DOWNLOADING COMPLETE")
         self.on_complete(file_path)
-        print("DOWNLOADING COMPLETE")
         return file_path
 
     def get_file_path(
